@@ -1,3 +1,5 @@
+const server = io.connect('http://localhost:1234');
+
 const canv = document.getElementById('canv');
 const ctx = canv.getContext('2d');
 const img = document.createElement('img');
@@ -16,6 +18,11 @@ const DEAFULT_SPEED = 0.15;
 const DEFAULT_BOMB_LIFESPAN = 3;
 const DEFAULT_EXPLOSION_LIFESPAN = 1.5;
 const DEFAULT_MOVE_DURATION = FPS / 3;
+
+// server vars
+let id = null;
+let otherIds = [];
+let otherPlayers = new Array();
 
 canv.height = h;
 canv.width = w;
@@ -36,7 +43,7 @@ let selecting = [0, null];
 let pressed = false;
 
 // map vars
-let defaultMap = [
+const defaultMap = [
   [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
   [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
   [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
@@ -54,13 +61,14 @@ let defaultMap = [
   [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
   [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
 ];
+let gameMap = null;
 const TILESIZE = 20;
 const XTILES = 16;
 const YTILES = 16;
 const scale = Math.min(h, w) / (XTILES * TILESIZE);
 let bombs = [];
 let explosions = [];
-let powerups = [[4, 2, 0], [5, 2, 1], [6, 2, 2], [7, 2, 3]];
+let powerups = [];
 
 // player vars
 let playerx = null;
@@ -74,6 +82,8 @@ let nextMove = null;
 let moveTemp = null;
 let alive = true;
 let lastMove = 0;
+let name = 'Player ' + Math.floor(Math.random() * 100);
+let score = 0;
 
 ctx.fillStyle = 'grey';
 ctx.fillRect(0, 0, w, h);
@@ -87,32 +97,15 @@ function reloadGame() {
   bombing = false;
 
   // reset map vars
-  defaultMap = [
-    [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-    [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-    [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-    [1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1],
-    [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-    [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-    [1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1],
-    [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-    [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-    [1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1],
-    [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-    [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-    [1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1],
-    [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-    [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-    [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
-  ];
+  gameMap = defaultMap;
   bombs = [];
   explosions = [];
   powerups = [];
   fades = [];
 
   // reset player vars
-  playerx = 1;
-  playery = 1;
+  playerx = 2;
+  playery = YTILES - 2;
   char = 1;
   placingBombs = false;
   maxBombs = DEFAULT_MAXBOMBS;
@@ -122,33 +115,45 @@ function reloadGame() {
   lastMove = 0;
 
   // map randomisation
-  for (
-    let x = Math.round(Math.random() * 2);
-    x < XTILES;
-    x += Math.round(Math.random() * 2)
-  ) {
-    for (
-      let y = Math.round(Math.random() * 2);
-      y < YTILES;
-      y += Math.round(Math.random() * 2)
-    ) {
-      if (
-        defaultMap[y][x] === 0 &&
-        !(playerx === Math.floor(y) && playery === Math.floor(x))
-      ) {
-        defaultMap[y][x] = 2;
-      }
-    }
-  }
+  // for (
+  //   let x = Math.round(Math.random() * 2);
+  //   x < XTILES;
+  //   x += Math.round(Math.random() * 2)
+  // ) {
+  //   for (
+  //     let y = Math.round(Math.random() * 2);
+  //     y < YTILES;
+  //     y += Math.round(Math.random() * 2)
+  //   ) {
+  //     if (
+  //       gameMap[y][x] === 0 &&
+  //       !(playerx === Math.floor(y) && playery === Math.floor(x))
+  //     ) {
+  //       gameMap[y][x] = 2;
+  //     }
+  //   }
+  // }
 
-  ctx.fillStyle = 'grey';
-  ctx.fillRect(0, 0, w, h);
   ctx.font = '16px calibri';
   ctx.fillStyle = 'black';
-  ctx.fillText('game ready, start timer to begin.', 20, 35);
-  ctx.fillText('(tap game or press x).', 50, 50);
+  ctx.fillText('Game loaded, connecting to server.', 20, 35);
+  ctx.fillText(
+    'Game will start automatically when connection has been confirmed.',
+    50,
+    50
+  );
   ticker = 0;
   stopTimer();
+  timer = setInterval(() => {
+    ctx.fillStyle = `rgba(${(128 * ticker) / 20},${(200 * ticker) / 20},128,1)`;
+    ctx.fillRect(250 + ticker * 5, 27, 4, 8);
+    ticker++;
+    ticker = ticker % 20;
+    if (ticker === 0) {
+      ctx.fillStyle = 'grey';
+      ctx.clearRect(250, 27, 100, 8);
+    }
+  }, 200);
 }
 
 function drawCircle(x, y, r = 5, stroke = 'grey', lw = 4, fill = 'black') {
@@ -181,7 +186,7 @@ function drawBlock(blockx, blocky, xdisp, ydisp, w, h) {
 }
 
 function addBomb(x, y) {
-  if (bombs.length < maxBombs && defaultMap[y][x] === 0) {
+  if (bombs.length < maxBombs && gameMap[y][x] === 0) {
     bombs.push([x, y, bombSize, DEFAULT_BOMB_LIFESPAN * FPS]);
     changeBlock(x, y, 3);
   }
@@ -199,7 +204,7 @@ function explodeBomb(i) {
     if (!flags[0]) {
       if (canPlaceExplosion(x - count, y)) {
         addExplosion(x - count, y, 2, count);
-        if (defaultMap[y][x - count] === 2) {
+        if (gameMap[y][x - count] === 2) {
           flags[0] = true;
         } else {
         }
@@ -210,7 +215,7 @@ function explodeBomb(i) {
     if (!flags[1]) {
       if (canPlaceExplosion(x, y - count)) {
         addExplosion(x, y - count, 1, count);
-        if (defaultMap[y - count][x] === 2) {
+        if (gameMap[y - count][x] === 2) {
           flags[1] = true;
         } else {
         }
@@ -221,7 +226,7 @@ function explodeBomb(i) {
     if (!flags[2]) {
       if (canPlaceExplosion(x + count, y)) {
         addExplosion(x + count, y, 2, count);
-        if (defaultMap[y][x + count] === 2) {
+        if (gameMap[y][x + count] === 2) {
           flags[2] = true;
         } else {
         }
@@ -232,7 +237,7 @@ function explodeBomb(i) {
     if (!flags[3]) {
       if (canPlaceExplosion(x, y + count)) {
         addExplosion(x, y + count, 1, count);
-        if (defaultMap[y + count][x] === 2) {
+        if (gameMap[y + count][x] === 2) {
           flags[3] = true;
         } else {
         }
@@ -245,7 +250,7 @@ function explodeBomb(i) {
 }
 
 function canPlaceExplosion(x, y) {
-  switch (defaultMap[y][x]) {
+  switch (gameMap[y][x]) {
     case 0:
     case 2:
     case 3:
@@ -259,7 +264,7 @@ function canPlaceExplosion(x, y) {
 }
 
 function canMoveHere(x, y) {
-  switch (defaultMap[y][x]) {
+  switch (gameMap[y][x]) {
     case 0:
     case 4:
     case 5:
@@ -274,7 +279,7 @@ function canMoveHere(x, y) {
 }
 
 function maybeDropPowerup(x, y) {
-  switch (defaultMap[y][x]) {
+  switch (gameMap[y][x]) {
     case 2:
       return true;
     default:
@@ -330,7 +335,7 @@ function addExplosion(x, y, type, dir = null) {
 }
 
 function testExplosion(x, y) {
-  switch (defaultMap[y][x]) {
+  switch (gameMap[y][x]) {
     case 0:
       return false;
     default:
@@ -340,7 +345,7 @@ function testExplosion(x, y) {
 
 function removeExplosion(i, x, y) {
   explosions.splice(i, 1);
-  if (defaultMap[y][x] === 6 || defaultMap[y][x] === 7) {
+  if (gameMap[y][x] === 6 || gameMap[y][x] === 7) {
     addPowerup(x, y);
   } else {
     changeBlock(x, y, 0);
@@ -389,11 +394,12 @@ function takePowerup(i) {
 }
 
 function changeBlock(x, y, val) {
-  defaultMap[y][x] = val;
+  gameMap[y][x] = val;
+  server.emit('changeBlock', { x, y, val });
 }
 
 function collisionCheck(x, y) {
-  switch (defaultMap[Math.floor(y)][Math.floor(x)]) {
+  switch (gameMap[Math.floor(y)][Math.floor(x)]) {
     case 0:
     case 4:
     case 5:
@@ -465,7 +471,7 @@ function fillInfo() {
 }
 
 function lobbyInfo() {
-  let options = ['select character>', 'ready!>'];
+  let options = ['select character>', 'change name>', '>ready!'];
   selecting[0] = (selecting[0] + options.length) % options.length;
   if (pressed && selecting[1] === null) {
     selecting[1] = 0;
@@ -485,24 +491,29 @@ function lobbyInfo() {
             ? 'yellow'
             : 'grey'
           : 'white';
-    ctx.font = '16px calibri';
-    ctx.fillText(options[i], TILESIZE + TILESIZE / 2, (i + 3) * TILESIZE);
+    ctx.font = '12px calibri';
+    ctx.fillText(options[i], TILESIZE + TILESIZE / 2, (i / 2 + 3) * TILESIZE);
   }
-  drawPlayers();
+  drawPlayerCards();
   if (selecting[1] !== null) {
     drawSubOptions(selecting);
     switch (selecting[0]) {
       case 0:
         selecting[1] = (selecting[1] + NUM_CHARACTERS) % NUM_CHARACTERS;
         if (pressed) {
-          char = selecting[1];
-          ticker = 0;
-          pressed = false;
+          {
+            char = selecting[1];
+            selecting[1] = null;
+            ticker = 0;
+            pressed = false;
+            server.emit('charChange', char);
+          }
         }
         break;
       case options.length - 1:
-        if (selecting[1] !== null) {
+        if (selecting[1] !== null && !ready) {
           ready = true;
+          server.emit('readyChange', ready);
         }
         if (pressed) {
           selecting[1] = null;
@@ -515,42 +526,23 @@ function lobbyInfo() {
 function drawSubOptions(selectedOpts) {
   switch (selectedOpts[0]) {
     case 0: // select character
-      for (let i = 0; i < 4; i++) {
-        ctx.fillStyle = i === char ? 'lime' : 'rgba(255,255,255,0.6)';
-        ctx.fillRect(
-          (8.9 + i) * TILESIZE,
-          (2.7 + i) * TILESIZE,
-          TILESIZE * 1.5,
-          TILESIZE
-        );
-        if (i === selectedOpts[1]) {
-          ctx.fillStyle = 'white';
-          ctx.fillRect(
-            (8.9 + i) * TILESIZE - TILESIZE / 10,
-            (2.7 + i) * TILESIZE,
-            TILESIZE / 10,
-            TILESIZE
+      for (let i = 0; i < NUM_CHARACTERS; i++) {
+        if (i === char) {
+          drawCircle(
+            (6 + i * 1.5) * TILESIZE + (TILESIZE * 1.5) / 2,
+            (2 + i / 2) * TILESIZE + (TILESIZE * 1.5) / 2,
+            (TILESIZE * 1.5) / 2 + 3,
+            'rgba(128,255,128,0.5)',
+            4,
+            null
           );
-          ctx.fillStyle = 'yellow';
-          ctx.fillRect(
-            (8.9 + i) * TILESIZE,
-            (2.7 + i) * TILESIZE,
-            TILESIZE / 10,
-            TILESIZE
-          );
-          ctx.fillStyle = 'yellow';
-          ctx.fillRect(
-            (8.9 + i) * TILESIZE + TILESIZE * 1.5 - TILESIZE / 10,
-            (2.7 + i) * TILESIZE,
-            TILESIZE / 10,
-            TILESIZE
-          );
-          ctx.fillStyle = 'white';
-          ctx.fillRect(
-            (8.9 + i) * TILESIZE + TILESIZE * 1.5,
-            (2.7 + i) * TILESIZE,
-            TILESIZE / 10,
-            TILESIZE
+          drawCircle(
+            (6 + i * 1.5) * TILESIZE + (TILESIZE * 1.5) / 2,
+            (2 + i / 2) * TILESIZE + (TILESIZE * 1.5) / 2,
+            (TILESIZE * 1.5) / 2,
+            'white',
+            2,
+            'rgba(0,0,0,0.6)'
           );
         }
         drawBlock(
@@ -561,24 +553,73 @@ function drawSubOptions(selectedOpts) {
               : Math.round(((ticker / FPS) * 2) % 1),
 
           11 - i,
-          (9 + i) * TILESIZE,
-          (2 + i) * TILESIZE,
+          (6 + i * 1.5) * TILESIZE,
+          (2 + i / 2) * TILESIZE,
           TILESIZE * 1.5,
           TILESIZE * 1.5
         );
       }
+      drawCircle(
+        (6 + selectedOpts[1] * 1.5) * TILESIZE + (TILESIZE * 1.5) / 2,
+        (2 + selectedOpts[1] / 2) * TILESIZE + (TILESIZE * 1.5) / 2,
+        (TILESIZE * 1.5) / 2 + 2,
+        'yellow',
+        2,
+        'rgba(255,255,255,0.6)'
+      );
+      drawCircle(
+        (6 + selectedOpts[1] * 1.5) * TILESIZE + (TILESIZE * 1.5) / 2,
+        (2 + selectedOpts[1] / 2) * TILESIZE + (TILESIZE * 1.5) / 2,
+        (TILESIZE * 1.5) / 2 + 3,
+        'grey',
+        1,
+        null
+      );
+      drawBlock(
+        Math.round(((ticker / FPS) * 2) % 1),
+        11 - selectedOpts[1],
+        (6 + selectedOpts[1] * 1.5) * TILESIZE,
+        (2 + selectedOpts[1] / 2) * TILESIZE,
+        TILESIZE * 1.5,
+        TILESIZE * 1.5
+      );
+      break;
+    case 1:
+      let newName = prompt('Please enter your new name.!', name);
+      if (newName !== null) {
+        name = newName;
+        server.emit('nameChange', name);
+      }
+      selecting[1] = null;
+      pressed = false;
       break;
     default:
       break;
   }
 }
 
-function drawPlayers() {
-  drawPlayerCard(2, 5, char, 'Me desu.', 0, ready);
+function drawPlayerCards() {
+  drawPlayerCard(2, 5, char, name, score, ready, state);
+  for (let i = 0; i < otherIds.length; i++) {
+    drawPlayerCard(
+      2,
+      5 + i + 1,
+      otherPlayers[otherIds[i]].char,
+      otherPlayers[otherIds[i]].name,
+      otherPlayers[otherIds[i]].score,
+      otherPlayers[otherIds[i]].ready,
+      otherPlayers[otherIds[i]].state
+    );
+  }
 }
 
-function drawPlayerCard(xStart, yStart, char, name, score, ready) {
-  ctx.fillStyle = ready ? 'rgba(128,255,128,0.5)' : 'rgba(255,255,255,0.5)';
+function drawPlayerCard(xStart, yStart, char, name, score, ready, state) {
+  ctx.fillStyle =
+    state === 'LOBBY'
+      ? ready
+        ? 'rgba(128,255,128,0.5)'
+        : 'rgba(255,255,255,0.5)'
+      : 'rgba(128,128,210,0.6)';
   ctx.fillRect(xStart * TILESIZE, yStart * TILESIZE, TILESIZE * 6, TILESIZE);
   drawBlock(
     0 + (Math.round(ticker / FPS) % 8),
@@ -594,7 +635,7 @@ function drawPlayerCard(xStart, yStart, char, name, score, ready) {
     name,
     (xStart + 1) * TILESIZE,
     (yStart + 0.9) * TILESIZE,
-    TILESIZE * 6
+    TILESIZE * 5
   );
   ctx.fillStyle = 'rgba(128,128,255,0.5)';
   ctx.fillRect(
@@ -608,6 +649,14 @@ function drawPlayerCard(xStart, yStart, char, name, score, ready) {
     score,
     (xStart + 6.5) * TILESIZE,
     (yStart + 0.9) * TILESIZE,
+    TILESIZE * 2
+  );
+  ctx.font = '8px calibri';
+  ctx.fillStyle = 'lime';
+  ctx.fillText(
+    state,
+    (xStart + 4) * TILESIZE,
+    (yStart + 0.3) * TILESIZE,
     TILESIZE * 2
   );
 }
@@ -633,7 +682,7 @@ const startTimer = () => {
       for (let i = 0; i < XTILES; i++) {
         for (let j = 0; j < YTILES; j++) {
           drawBlock(
-            defaultMap[j][i],
+            gameMap[j][i],
             0,
             i * TILESIZE,
             j * TILESIZE,
@@ -719,6 +768,38 @@ const startTimer = () => {
           }
         }
       }
+
+      // other players
+      for (let i = 0; i < otherIds.length; i++) {
+        if (otherPlayers[otherIds[i]].moveTemp !== null) {
+          if (otherPlayers[otherIds[i]].moveTemp[0] > 0) {
+            otherPlayers[otherIds[i]].lastMove =
+              2 + Math.abs(Math.round(offset));
+          } else if (otherPlayers[otherIds[i]].moveTemp[0] < 0) {
+            otherPlayers[otherIds[i]].lastMove =
+              4 + Math.abs(Math.round(offset));
+          } else {
+            if (otherPlayers[otherIds[i]].moveTemp[1] < 0) {
+              otherPlayers[otherIds[i]].lastMove =
+                6 + Math.abs(Math.round(offset));
+            } else if (otherPlayers[otherIds[i]].moveTemp[1] > 0) {
+              otherPlayers[otherIds[i]].lastMove =
+                8 + Math.abs(Math.round(offset));
+            } else {
+              otherPlayers[otherIds[i]].lastMove =
+                0 + Math.abs(Math.round(offset));
+            }
+          }
+        }
+        drawBlock(
+          otherPlayers[otherIds[i]].lastMove,
+          11 - otherPlayers[otherIds[i]].char,
+          otherPlayers[otherIds[i]].playerx * TILESIZE - TILESIZE / 3,
+          otherPlayers[otherIds[i]].playery * TILESIZE - (2 * TILESIZE) / 3,
+          TILESIZE * 1.5,
+          TILESIZE * 1.5
+        );
+      }
       drawBlock(
         lastMove,
         11 - char,
@@ -796,6 +877,46 @@ const startTimer = () => {
                 ];
               }
               nextMove = null;
+            }
+          }
+
+          // move other players
+          for (let i = 0; i < otherIds.length; i++) {
+            if (otherPlayers[otherIds[i]].moveTemp !== null) {
+              otherPlayers[otherIds[i]].playerx +=
+                otherPlayers[otherIds[i]].moveTemp[0];
+              otherPlayers[otherIds[i]].playery +=
+                otherPlayers[otherIds[i]].moveTemp[1];
+              otherPlayers[otherIds[i]].moveTemp[2]--;
+              if (otherPlayers[otherIds[i]].moveTemp[2] <= 0) {
+                otherPlayers[otherIds[i]].playerx = Math.round(
+                  otherPlayers[otherIds[i]].playerx
+                );
+                otherPlayers[otherIds[i]].playery = Math.round(
+                  otherPlayers[otherIds[i]].playery
+                );
+                otherPlayers[otherIds[i]].moveTemp = null;
+              }
+            } else {
+              if (otherPlayers[otherIds[i]].nextMove !== null) {
+                if (
+                  collisionCheck(
+                    otherPlayers[otherIds[i]].playerx +
+                      otherPlayers[otherIds[i]].nextMove[0],
+                    otherPlayers[otherIds[i]].playery +
+                      otherPlayers[otherIds[i]].nextMove[1]
+                  )
+                ) {
+                  otherPlayers[otherIds[i]].moveTemp = [
+                    otherPlayers[otherIds[i]].nextMove[0] /
+                      otherPlayers[otherIds[i]].moveDuration,
+                    otherPlayers[otherIds[i]].nextMove[1] /
+                      otherPlayers[otherIds[i]].moveDuration,
+                    otherPlayers[otherIds[i]].moveDuration
+                  ];
+                }
+                otherPlayers[otherIds[i]].nextMove = null;
+              }
             }
           }
         }
@@ -885,23 +1006,43 @@ canv.addEventListener('keyup', e => {
   switch (e.key) {
     case 'a':
     case 'ArrowLeft':
-      moving[0] = false;
+      if (state === 'PLAY') {
+        moving[0] = false;
+      } else {
+        mobileInput('l', false);
+      }
       break;
     case 'w':
     case 'ArrowUp':
-      moving[1] = false;
+      if (state === 'PLAY') {
+        moving[1] = false;
+      } else {
+        mobileInput('u', false);
+      }
       break;
     case 'd':
     case 'ArrowRight':
-      moving[2] = false;
+      if (state === 'PLAY') {
+        moving[2] = false;
+      } else {
+        mobileInput('r', false);
+      }
       break;
     case 's':
     case 'ArrowDown':
-      moving[3] = false;
+      if (state === 'PLAY') {
+        moving[3] = false;
+      } else {
+        mobileInput('d', false);
+      }
       break;
     case 'b':
     case ' ':
-      bombing = false;
+      if (state === 'PLAY') {
+        bombing = false;
+      } else {
+        mobileInput('b', true);
+      }
       break;
     case 'c':
       stopTimer();
@@ -915,7 +1056,7 @@ canv.addEventListener('keyup', e => {
       for (let j = 0; j < YTILES; j++) {
         let str = '[';
         for (let i = 0; i < XTILES; i++) {
-          str += defaultMap[j][i] + ',';
+          str += gameMap[j][i] + ',';
         }
         final += str.slice(0, str.length - 1) + '],';
       }
@@ -965,6 +1106,7 @@ function mobileInput(key, up) {
           pressed = false;
           if (ready) {
             ready = false;
+            server.emit('readyChange', ready);
           }
         }
         break;
@@ -988,11 +1130,103 @@ function mobileInput(key, up) {
         }
         break;
       case 'b':
-        pressed = true;
+        if (up) {
+          pressed = true;
+        }
         break;
     }
   }
 }
 
 reloadGame();
-startTimer();
+// startTimer();
+const startGame = () => {
+  if (id !== null) {
+    startTimer();
+  }
+};
+
+server.on('acceptCon', data => {
+  id = data;
+  stopTimer();
+  startTimer();
+  let myData = {
+    char,
+    alive,
+    maxBombs,
+    bombSize,
+    playerx,
+    playery,
+    ready,
+    name,
+    moveDuration,
+    moveTemp,
+    lastMove,
+    nextMove,
+    score,
+    state
+  };
+  server.emit('ackAcceptCon', myData);
+});
+
+server.on('newPlayer', data => {
+  otherIds.push(data.id);
+  otherPlayers[data.id] = data.payload;
+  console.log('newPlayer', data);
+});
+
+server.on('playerLeft', data => {
+  console.log('playerLeft', data);
+  otherIds = otherIds.filter(id => id !== data);
+  let newPlayersArray = [];
+  for (let i = 0; i < otherIds.length; i++) {
+    newPlayersArray[otherIds[i]] = otherPlayers[otherIds[i]];
+  }
+  otherPlayers = newPlayersArray;
+});
+
+server.on('charChanged', data => {
+  console.log('charChanged', data);
+  otherPlayers[data.id].char = data.payload;
+});
+server.on('nameChanged', data => {
+  console.log('nameChanged', data);
+  otherPlayers[data.id].name = data.payload;
+});
+
+server.on('readyChanged', data => {
+  console.log('readyChanged', data);
+  otherPlayers[data.id].ready = data.payload;
+});
+
+server.on('stateChanged', data => {
+  console.log('stateChanged', data);
+  otherPlayers[data.id].state = data.payload;
+});
+
+server.on('startPos', data => {
+  playerx = data.x;
+  playery = data.y;
+});
+
+server.on('startGame', data => {
+  if (data !== undefined && data !== null) {
+    gameMap = data;
+    console.log(data);
+    state = 'PLAY';
+    ticker = 0;
+    stopTimer();
+    startTimer();
+    server.emit('changeState', 'PLAY');
+  }
+});
+
+server.on('movedToBlock', data => {
+  otherPlayers[data.id].playerx = data.x;
+  otherPlayers[data.id].playery = data.y;
+});
+
+server.on('changedBlock',data => {
+  if(data.x < XTILES && data.y < YTILES){
+  gameMap[data.y][data.x] = data.val;}
+})
