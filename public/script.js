@@ -1,4 +1,5 @@
-const server = io.connect('http://localhost:1234');
+// const server = io.connect('http://localhost:1234');
+const server = io.connect('http://178.128.45.249:1234');
 
 const canv = document.getElementById('canv');
 const ctx = canv.getContext('2d');
@@ -1226,7 +1227,8 @@ server.on('movedToBlock', data => {
   otherPlayers[data.id].playery = data.y;
 });
 
-server.on('changedBlock',data => {
-  if(data.x < XTILES && data.y < YTILES){
-  gameMap[data.y][data.x] = data.val;}
-})
+server.on('changedBlock', data => {
+  if (data.x < XTILES && data.y < YTILES) {
+    gameMap[data.y][data.x] = data.val;
+  }
+});
