@@ -4,11 +4,12 @@ const img = document.createElement('img');
 img.src = 'imgs/tiles.png';
 
 const h = window.innerHeight;
-const w = window.innerWidth;
+const w = Math.min(window.innerHeight, 1200);
 const TWOPI = 2 * Math.PI;
 
 // game vars
 const FPS = 60;
+const NUM_CHARACTERS = 4;
 const DEFAULT_BOMBSIZE = 2;
 const DEFAULT_MAXBOMBS = 1;
 const DEAFULT_SPEED = 0.15;
@@ -19,13 +20,20 @@ const DEFAULT_MOVE_DURATION = FPS / 3;
 canv.height = h;
 canv.width = w;
 let mobile = false;
-if (w < h) {
+if (window.innerWidth < window.innerHeight) {
   mobile = true;
+  canv.width = Math.min(window.innerHeight, 1200);
+} else {
+  document.getElementById('mobilectrls').style.display = 'none';
 }
 
 // interface
 let moving = [false, false, false, false];
 let bombing = false;
+let state = 'LOBBY';
+let ready = false;
+let selecting = [0, null];
+let pressed = false;
 
 // map vars
 let defaultMap = [
@@ -456,6 +464,154 @@ function fillInfo() {
   //   );
 }
 
+function lobbyInfo() {
+  let options = ['select character>', 'ready!>'];
+  selecting[0] = (selecting[0] + options.length) % options.length;
+  if (pressed && selecting[1] === null) {
+    selecting[1] = 0;
+    pressed = false;
+  }
+  ctx.fillStyle = 'rgba(0,0,0,0.4)';
+  ctx.fillRect(0, 0, canv.width, canv.height);
+  ctx.fillStyle = 'white';
+  ctx.font = '20px calibri';
+  ctx.fillText('NOMBERNAN FFA', TILESIZE, 2 * TILESIZE);
+  for (let i = 0; i < options.length; i++) {
+    ctx.fillStyle =
+      ready && i === options.length - 1
+        ? 'lime'
+        : selecting[0] === i
+          ? selecting[1] === null
+            ? 'yellow'
+            : 'grey'
+          : 'white';
+    ctx.font = '16px calibri';
+    ctx.fillText(options[i], TILESIZE + TILESIZE / 2, (i + 3) * TILESIZE);
+  }
+  drawPlayers();
+  if (selecting[1] !== null) {
+    drawSubOptions(selecting);
+    switch (selecting[0]) {
+      case 0:
+        selecting[1] = (selecting[1] + NUM_CHARACTERS) % NUM_CHARACTERS;
+        if (pressed) {
+          char = selecting[1];
+          ticker = 0;
+          pressed = false;
+        }
+        break;
+      case options.length - 1:
+        if (selecting[1] !== null) {
+          ready = true;
+        }
+        if (pressed) {
+          selecting[1] = null;
+        }
+        break;
+    }
+  }
+}
+
+function drawSubOptions(selectedOpts) {
+  switch (selectedOpts[0]) {
+    case 0: // select character
+      for (let i = 0; i < 4; i++) {
+        ctx.fillStyle = i === char ? 'lime' : 'rgba(255,255,255,0.6)';
+        ctx.fillRect(
+          (8.9 + i) * TILESIZE,
+          (2.7 + i) * TILESIZE,
+          TILESIZE * 1.5,
+          TILESIZE
+        );
+        if (i === selectedOpts[1]) {
+          ctx.fillStyle = 'white';
+          ctx.fillRect(
+            (8.9 + i) * TILESIZE - TILESIZE / 10,
+            (2.7 + i) * TILESIZE,
+            TILESIZE / 10,
+            TILESIZE
+          );
+          ctx.fillStyle = 'yellow';
+          ctx.fillRect(
+            (8.9 + i) * TILESIZE,
+            (2.7 + i) * TILESIZE,
+            TILESIZE / 10,
+            TILESIZE
+          );
+          ctx.fillStyle = 'yellow';
+          ctx.fillRect(
+            (8.9 + i) * TILESIZE + TILESIZE * 1.5 - TILESIZE / 10,
+            (2.7 + i) * TILESIZE,
+            TILESIZE / 10,
+            TILESIZE
+          );
+          ctx.fillStyle = 'white';
+          ctx.fillRect(
+            (8.9 + i) * TILESIZE + TILESIZE * 1.5,
+            (2.7 + i) * TILESIZE,
+            TILESIZE / 10,
+            TILESIZE
+          );
+        }
+        drawBlock(
+          i === selectedOpts[1]
+            ? Math.round(((ticker / FPS) * 2) % 1)
+            : char === i
+              ? 8 + Math.round((ticker / FPS) % 1)
+              : Math.round(((ticker / FPS) * 2) % 1),
+
+          11 - i,
+          (9 + i) * TILESIZE,
+          (2 + i) * TILESIZE,
+          TILESIZE * 1.5,
+          TILESIZE * 1.5
+        );
+      }
+      break;
+    default:
+      break;
+  }
+}
+
+function drawPlayers() {
+  drawPlayerCard(2, 5, char, 'Me desu.', 0, ready);
+}
+
+function drawPlayerCard(xStart, yStart, char, name, score, ready) {
+  ctx.fillStyle = ready ? 'rgba(128,255,128,0.5)' : 'rgba(255,255,255,0.5)';
+  ctx.fillRect(xStart * TILESIZE, yStart * TILESIZE, TILESIZE * 6, TILESIZE);
+  drawBlock(
+    0 + (Math.round(ticker / FPS) % 8),
+    11 - char,
+    xStart * TILESIZE,
+    yStart * TILESIZE,
+    TILESIZE,
+    TILESIZE
+  );
+  ctx.fillStyle = 'white';
+  ctx.font = '20px roman';
+  ctx.fillText(
+    name,
+    (xStart + 1) * TILESIZE,
+    (yStart + 0.9) * TILESIZE,
+    TILESIZE * 6
+  );
+  ctx.fillStyle = 'rgba(128,128,255,0.5)';
+  ctx.fillRect(
+    (xStart + 6.5) * TILESIZE,
+    yStart * TILESIZE,
+    TILESIZE * 2,
+    TILESIZE
+  );
+  ctx.fillStyle = 'white';
+  ctx.fillText(
+    score,
+    (xStart + 6.5) * TILESIZE,
+    (yStart + 0.9) * TILESIZE,
+    TILESIZE * 2
+  );
+}
+
 function movePlayer(x, y) {
   nextMove = [x - playerx, y - playery];
 }
@@ -531,8 +687,8 @@ const startTimer = () => {
             FPS})`
         );
       }
-      // beginning invulnv.
 
+      // beginning invulnv.
       if (ticker < FPS * 10) {
         ctx.beginPath();
         drawCircle(
@@ -572,104 +728,112 @@ const startTimer = () => {
         TILESIZE * 1.5
       );
       // debug info
-      fillInfo();
+      // fillInfo();
+      // lobby info + option if in lobby
+      if (state === 'LOBBY') {
+        lobbyInfo();
+      }
       ctx.scale(1 / scale, 1 / scale);
 
-      // update
-      // player interface
-      if (alive) {
-        if (moving[0]) {
-          // case 'l':
-          if (playerx > 0) {
-            if (collisionCheck(playerx - 1, playery)) {
-              movePlayer(playerx - 1, playery);
+      if (state === 'PLAY') {
+        // update
+        // player interface
+        if (alive) {
+          if (moving[0]) {
+            // case 'l':
+            if (playerx > 0) {
+              if (collisionCheck(playerx - 1, playery)) {
+                movePlayer(playerx - 1, playery);
+              }
             }
-          }
-        } else if (moving[1]) {
-          // case 'u':
-          if (playery > 0) {
-            if (collisionCheck(playerx, playery - 1)) {
-              movePlayer(playerx, playery - 1);
+          } else if (moving[1]) {
+            // case 'u':
+            if (playery > 0) {
+              if (collisionCheck(playerx, playery - 1)) {
+                movePlayer(playerx, playery - 1);
+              }
             }
-          }
-        } else if (moving[2]) {
-          // case 'r':
-          if (playerx < XTILES - 1) {
-            if (collisionCheck(playerx + 1, playery)) {
-              movePlayer(playerx + 1, playery);
+          } else if (moving[2]) {
+            // case 'r':
+            if (playerx < XTILES - 1) {
+              if (collisionCheck(playerx + 1, playery)) {
+                movePlayer(playerx + 1, playery);
+              }
             }
-          }
-        } else if (moving[3]) {
-          // case 'd':
-          if (playery < YTILES - 1) {
-            if (collisionCheck(playerx, playery + 1)) {
-              movePlayer(playerx, playery + 1);
+          } else if (moving[3]) {
+            // case 'd':
+            if (playery < YTILES - 1) {
+              if (collisionCheck(playerx, playery + 1)) {
+                movePlayer(playerx, playery + 1);
+              }
             }
-          }
-        } else {
-          nextMove = null;
-        }
-        if (bombing) {
-          // case 'b':
-          addBomb(Math.round(playerx), Math.round(playery));
-        }
-        // move player
-        if (moveTemp !== null) {
-          playerx += moveTemp[0];
-          playery += moveTemp[1];
-          moveTemp[2]--;
-          if (moveTemp[2] <= 0) {
-            playerx = Math.round(playerx);
-            playery = Math.round(playery);
-            moveTemp = null;
-          }
-        } else {
-          if (nextMove !== null) {
-            if (collisionCheck(playerx + nextMove[0], playery + nextMove[1])) {
-              moveTemp = [
-                nextMove[0] / moveDuration,
-                nextMove[1] / moveDuration,
-                moveDuration
-              ];
-            }
+          } else {
             nextMove = null;
           }
-        }
-      }
-
-      // bombs
-      for (let i = 0; i < bombs.length; i++) {
-        bombs[i][3]--;
-        if (bombs[i][3] <= 0) {
-          explodeBomb(i);
-        }
-      }
-      // explosions
-      for (let i = 0; i < explosions.length; i++) {
-        if (explosions[i][0] === playerx && explosions[i][1] === playery) {
-          if (ticker > FPS * 10) {
-            alive = false;
+          if (bombing) {
+            // case 'b':
+            addBomb(Math.round(playerx), Math.round(playery));
+          }
+          // move player
+          if (moveTemp !== null) {
+            playerx += moveTemp[0];
+            playery += moveTemp[1];
+            moveTemp[2]--;
+            if (moveTemp[2] <= 0) {
+              playerx = Math.round(playerx);
+              playery = Math.round(playery);
+              moveTemp = null;
+            }
+          } else {
+            if (nextMove !== null) {
+              if (
+                collisionCheck(playerx + nextMove[0], playery + nextMove[1])
+              ) {
+                moveTemp = [
+                  nextMove[0] / moveDuration,
+                  nextMove[1] / moveDuration,
+                  moveDuration
+                ];
+              }
+              nextMove = null;
+            }
           }
         }
-        explosions[i][3]--;
-        if (explosions[i][3] <= 0) {
-          removeExplosion(i, explosions[i][0], explosions[i][1]);
+
+        // bombs
+        for (let i = 0; i < bombs.length; i++) {
+          bombs[i][3]--;
+          if (bombs[i][3] <= 0) {
+            explodeBomb(i);
+          }
         }
-      }
-      // powerups
-      for (let i = 0; i < powerups.length; i++) {
-        if (
-          powerups[i][0] === Math.round(playerx) &&
-          powerups[i][1] === Math.round(playery)
-        ) {
-          takePowerup(i);
+        // explosions
+        for (let i = 0; i < explosions.length; i++) {
+          if (explosions[i][0] === playerx && explosions[i][1] === playery) {
+            if (ticker > FPS * 10) {
+              alive = false;
+            }
+          }
+          explosions[i][3]--;
+          if (explosions[i][3] <= 0) {
+            removeExplosion(i, explosions[i][0], explosions[i][1]);
+          }
         }
-      }
-      // fades
-      for (let i = 0; i < fades.length; i++) {
-        fades[i][6]--;
-        if (fades[i][6] <= 0) {
-          fades.splice(i, 1);
+        // powerups
+        for (let i = 0; i < powerups.length; i++) {
+          if (
+            powerups[i][0] === Math.round(playerx) &&
+            powerups[i][1] === Math.round(playery)
+          ) {
+            takePowerup(i);
+          }
+        }
+        // fades
+        for (let i = 0; i < fades.length; i++) {
+          fades[i][6]--;
+          if (fades[i][6] <= 0) {
+            fades.splice(i, 1);
+          }
         }
       }
       ticker++;
@@ -687,26 +851,32 @@ const stopTimer = () => {
 };
 
 canv.addEventListener('keydown', e => {
-  switch (e.key) {
-    case 'a':
-    case 'ArrowLeft':
-      moving[0] = true;
+  switch (state) {
+    case 'LOBBY':
       break;
-    case 'w':
-    case 'ArrowUp':
-      moving[1] = true;
-      break;
-    case 'd':
-    case 'ArrowRight':
-      moving[2] = true;
-      break;
-    case 's':
-    case 'ArrowDown':
-      moving[3] = true;
-      break;
-    case 'b':
-    case ' ':
-      bombing = true;
+    case 'PLAY':
+      switch (e.key) {
+        case 'a':
+        case 'ArrowLeft':
+          moving[0] = true;
+          break;
+        case 'w':
+        case 'ArrowUp':
+          moving[1] = true;
+          break;
+        case 'd':
+        case 'ArrowRight':
+          moving[2] = true;
+          break;
+        case 's':
+        case 'ArrowDown':
+          moving[3] = true;
+          break;
+        case 'b':
+        case ' ':
+          bombing = true;
+          break;
+      }
       break;
   }
 });
@@ -760,5 +930,69 @@ canv.addEventListener('keyup', e => {
 if (mobile) {
   canv.height = canv.width;
 }
+function mobileInput(key, up) {
+  if (state === 'PLAY') {
+    if (!up) {
+      switch (key) {
+        case 'l':
+          moving[0] = true;
+          break;
+        case 'u':
+          moving[1] = true;
+          break;
+        case 'r':
+          moving[2] = true;
+          break;
+        case 'd':
+          moving[3] = true;
+          break;
+        case 'b':
+          bombing = true;
+          break;
+      }
+    } else {
+      if (key === 'b') {
+        bombing = false;
+      } else {
+        moving = [false, false, false, false];
+      }
+    }
+  } else if (state === 'LOBBY') {
+    switch (key) {
+      case 'l':
+        if (selecting[1] !== null) {
+          selecting[1] = null;
+          pressed = false;
+          if (ready) {
+            ready = false;
+          }
+        }
+        break;
+      case 'u':
+        if (selecting[1] === null) {
+          selecting[0]--;
+        } else {
+          selecting[1]--;
+        }
+        break;
+      case 'r':
+        if (selecting[1] === null) {
+          selecting[1] = 0;
+        }
+        break;
+      case 'd':
+        if (selecting[1] === null) {
+          selecting[0]++;
+        } else {
+          selecting[1]++;
+        }
+        break;
+      case 'b':
+        pressed = true;
+        break;
+    }
+  }
+}
 
 reloadGame();
+startTimer();

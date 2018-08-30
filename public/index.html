@@ -11,37 +11,52 @@
     * {
       margin: 0;
       overflow: hidden;
-      font-size: 1.5rem;
+      font-size: 1.2rem;
     }
 
     #canv {
       background: linear-gradient(to bottom right, cyan, green);
+      border-radius: 8px;
+      /* min-width: 800px; */
+      width: 100%;
     }
 
     body {
       position: fixed;
+      height: 100%;
     }
 
     #mobilectrls {
       position: fixed;
       opacity: 0.6;
-      bottom: 1em;
-      min-width: 300px;
+      bottom: 0;
       width: 100%;
+      background-color: darkslateblue;
+      border-radius: 4px;
+    }
+
+    input {
+      background-color: white;
+      color: black;
+      border: none;
+      border-radius: 4px;
     }
 
     .btn {
       display: inline-block;
       height: 100px;
       width: 100%;
-      background-color: grey;
-      color: white;
     }
 
     .btn2 {
       display: inline-block;
       width: 100%;
-      background-color: grey;
+      margin: 0;
+      padding: 0.5em;
+    }
+
+    #bombbtn {
+      background-color: green;
       color: white;
     }
   </style>
@@ -51,18 +66,18 @@
   <canvas id='canv' tabIndex='1' onclick="startTimer();"></canvas>
   <table id='mobilectrls'>
     <tr>
-      <td rowspan='2'><input class='btn' type='button' value='B!' onmousedown="bombing = true;" onmouseup="bombing=false;"
+      <td rowspan='2'><input id='bombbtn' class='btn' type='button' value='B!' onmousedown="mobileInput('b',false);" onmouseup="mobileInput('b',true);"
           onmouseout="bombing = false;" /></td>
 
-      <td rowspan='2'><input class='btn' type='button' value='<' onmousedown="moving[0]=true;" onmouseup="moving=[false,false,false,false];"
+      <td rowspan='2' colspan='2'><input class='btn' type='button' value='<' onmousedown="mobileInput('l',false);" onmouseup="mobileInput(null,true);"
+          onmouseout="" /></td>
+      <td><input class='btn2' type='button' value='^' onmousedown="mobileInput('u',false);" onmouseup="mobileInput(null,true);"
           onmouseout="moving=[false,false,false,false]" /></td>
-      <td><input class='btn2' type='button' value='^' onmousedown="moving[1]=true;" onmouseup="moving=[false,false,false,false];"
-          onmouseout="moving=[false,false,false,false]" /></td>
-      <td rowspan='2'><input class='btn' type='button' value='>' onmousedown="moving[2]=true;" onmouseup="moving=[false,false,false,false];"
+      <td rowspan='2' colspan='2'><input class='btn' type='button' value='>' onmousedown="mobileInput('r',false);" onmouseup="mobileInput(null,true);"
           onmouseout="moving=[false,false,false,false]" /></td>
     </tr>
     <tr>
-      <td><input class='btn2' type='button' value='v' onmousedown="moving[3]=true;" onmouseup="moving=[false,false,false,false];"
+      <td><input class='btn2' type='button' value='v' onmousedown="mobileInput('d',false);" onmouseup="mobileInput(null,true);"
           onmouseout="moving=[false,false,false,false]" /></td>
     </tr>
   </table>
