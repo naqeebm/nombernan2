@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+  <title>NombernanJs</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/2.1.1/socket.io.dev.js"></script>
+  <style>
+    * {
+      margin: 0;
+      overflow: hidden;
+      font-size: 1.5rem;
+    }
+
+    #canv {
+      background: linear-gradient(to bottom right, cyan, green);
+    }
+
+    body {
+      position: fixed;
+    }
+
+    #mobilectrls {
+      position: fixed;
+      opacity: 0.6;
+      bottom: 1em;
+      min-width: 300px;
+      width: 100%;
+    }
+
+    .btn {
+      display: inline-block;
+      height: 100px;
+      width: 100%;
+      background-color: grey;
+      color: white;
+    }
+
+    .btn2 {
+      display: inline-block;
+      width: 100%;
+      background-color: grey;
+      color: white;
+    }
+  </style>
+</head>
+
+<body>
+  <canvas id='canv' tabIndex='1' onclick="startTimer();"></canvas>
+  <table id='mobilectrls'>
+    <tr>
+      <td rowspan='2'><input class='btn' type='button' value='B!' onmousedown="bombing = true;" onmouseup="bombing=false;"
+          onmouseout="bombing = false;" /></td>
+
+      <td rowspan='2'><input class='btn' type='button' value='<' onmousedown="moving[0]=true;" onmouseup="moving=[false,false,false,false];"
+          onmouseout="moving=[false,false,false,false]" /></td>
+      <td><input class='btn2' type='button' value='^' onmousedown="moving[1]=true;" onmouseup="moving=[false,false,false,false];"
+          onmouseout="moving=[false,false,false,false]" /></td>
+      <td rowspan='2'><input class='btn' type='button' value='>' onmousedown="moving[2]=true;" onmouseup="moving=[false,false,false,false];"
+          onmouseout="moving=[false,false,false,false]" /></td>
+    </tr>
+    <tr>
+      <td><input class='btn2' type='button' value='v' onmousedown="moving[3]=true;" onmouseup="moving=[false,false,false,false];"
+          onmouseout="moving=[false,false,false,false]" /></td>
+    </tr>
+  </table>
+  <script src="script.js"></script>
+
+</body>
+
+</html>
