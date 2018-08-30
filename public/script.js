@@ -1077,64 +1077,60 @@ function mobileInput(key, up) {
     if (!up) {
       switch (key) {
         case 'l':
-          moving[0] = true;
+          moving = [!moving[0], false, false, false];
           break;
         case 'u':
-          moving[1] = true;
+          moving = [false, !moving[1], false, false];
           break;
         case 'r':
-          moving[2] = true;
+          moving = [false, false, !moving[2], false];
           break;
         case 'd':
-          moving[3] = true;
+          moving = [false, false, false, !moving[3]];
           break;
         case 'b':
           bombing = true;
           break;
       }
-    } else {
-      if (key === 'b') {
-        bombing = false;
-      } else {
-        moving = [false, false, false, false];
-      }
     }
   } else if (state === 'LOBBY') {
-    switch (key) {
-      case 'l':
-        if (selecting[1] !== null) {
-          selecting[1] = null;
-          pressed = false;
-          if (ready) {
-            ready = false;
-            server.emit('readyChange', ready);
+    if (!up) {
+      switch (key) {
+        case 'l':
+          if (selecting[1] !== null) {
+            selecting[1] = null;
+            pressed = false;
+            if (ready) {
+              ready = false;
+              server.emit('readyChange', ready);
+            }
           }
-        }
-        break;
-      case 'u':
-        if (selecting[1] === null) {
-          selecting[0]--;
-        } else {
-          selecting[1]--;
-        }
-        break;
-      case 'r':
-        if (selecting[1] === null) {
-          selecting[1] = 0;
-        }
-        break;
-      case 'd':
-        if (selecting[1] === null) {
-          selecting[0]++;
-        } else {
-          selecting[1]++;
-        }
-        break;
-      case 'b':
-        if (up) {
-          pressed = true;
-        }
-        break;
+          break;
+        case 'u':
+          if (selecting[1] === null) {
+            selecting[0]--;
+          } else {
+            selecting[1]--;
+          }
+          break;
+        case 'r':
+          if (selecting[1] === null) {
+            selecting[1] = 0;
+          }
+          break;
+        case 'd':
+          if (selecting[1] === null) {
+            selecting[0]++;
+          } else {
+            selecting[1]++;
+          }
+          break;
+        case 'b':
+          if (up) {
+            pressed = true;
+          }
+          break;
+      }
     }
   }
 }
