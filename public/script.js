@@ -1,5 +1,5 @@
-// const server = io.connect('http://localhost:1234');
-const server = io.connect('http://178.128.45.249:1234');
+const server = io.connect('http://localhost:1234');
+// const server = io.connect('http://178.128.45.249:1234');
 
 const canv = document.getElementById('canv');
 const ctx = canv.getContext('2d');
@@ -63,10 +63,10 @@ const defaultMap = [
   [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
 ];
 let gameMap = null;
-const TILESIZE = 20;
-const XTILES = 16;
-const YTILES = 16;
-const scale = Math.min(h, w) / (XTILES * TILESIZE);
+let TILESIZE = 20;
+let XTILES = 16;
+let YTILES = 16;
+let scale = Math.min(h, w) / (XTILES * TILESIZE);
 let bombs = [];
 let explosions = [];
 let powerups = [];
@@ -1042,7 +1042,7 @@ canv.addEventListener('keyup', e => {
       if (state === 'PLAY') {
         bombing = false;
       } else {
-        mobileInput('b', true);
+        mobileInput('b', false);
       }
       break;
     case 'c':
@@ -1126,8 +1126,9 @@ function mobileInput(key, up) {
           }
           break;
         case 'b':
-          if (up) {
+          if (!up) {
             pressed = true;
+            console.log('pressed = true');
           }
           break;
       }
@@ -1208,7 +1209,10 @@ server.on('startPos', data => {
 
 server.on('startGame', data => {
   if (data !== undefined && data !== null) {
-    gameMap = data;
+    gameMap = data.map;
+    XTILES = data.XTILES;
+    YTILES = data.YTILES;
+    scale = Math.min(h, w) / (XTILES * TILESIZE);
     console.log(data);
     state = 'PLAY';
     ticker = 0;

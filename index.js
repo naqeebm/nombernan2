@@ -133,7 +133,7 @@ io.on('connection', con => {
           });
           count++;
         }
-        io.sockets.emit('startGame', map);
+        io.sockets.emit('startGame', { XTILES, YTILES, map });
         console.log('START GAME!');
       }
     }
